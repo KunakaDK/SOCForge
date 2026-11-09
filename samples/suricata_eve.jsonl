@@ -1,0 +1,1 @@
+{"timestamp":"2026-11-09T10:20:00Z","event_type":"alert","src_ip":"198.51.100.18","dest_ip":"192.0.2.80","proto":"TCP","in_iface":"lab0","flow_id":10001,"alert":{"signature_id":900001,"signature":"Synthetic lab policy test signature","category":"Potentially Bad Traffic","severity":2}}

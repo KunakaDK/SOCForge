@@ -1,0 +1,1 @@
+{"timestamp":"2026-11-09T10:15:00Z","rule":{"id":"5710","level":10,"description":"Synthetic multiple authentication failures for adapter validation","groups":["authentication_failed"]},"agent":{"id":"007","name":"demo-linux-01"},"data":{"srcip":"192.0.2.44","srcuser":"training.user","event_type":"authentication_failure"},"location":"demo-linux-01"}

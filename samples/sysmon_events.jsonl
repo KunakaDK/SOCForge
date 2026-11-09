@@ -1,0 +1,1 @@
+{"UtcTime":"2026-11-09T10:25:00Z","EventID":11,"Computer":"demo-windows-01","EventData":{"TargetFilename":"C:\\ProgramData\\Training\\config.ini","Image":"C:\\Windows\\System32\\notepad.exe","User":"LAB\\training.user"},"Message":"Synthetic Sysmon file creation event for adapter validation."}

@@ -1,0 +1,2 @@
+[console_scripts]
+socforge = socforge.cli:main

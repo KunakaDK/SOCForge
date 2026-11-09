@@ -1,0 +1,202 @@
+Metadata-Version: 2.4
+Name: socforge-blue-team-lab
+Version: 1.0.0
+Summary: A defensive SOC engineering lab for security telemetry, detection, triage, incident tracking, and auditable operations.
+Author: SOCForge contributors
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: fastapi<1.0,>=0.110
+Requires-Dist: uvicorn[standard]<1.0,>=0.27
+Requires-Dist: pydantic<3.0,>=2.6
+Requires-Dist: python-dotenv<2.0,>=1.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: httpx>=0.27; extra == "dev"
+Dynamic: license-file
+
+# SOCForge - Blue-Team SOC Engineering Lab
+
+**SOCForge** is a defensive, locally runnable security operations laboratory for a cybersecurity engineering portfolio. It demonstrates security telemetry ingestion, normalisation, transparent detection rules, alert triage, incident records, vulnerability operations and tamper-evident audit history.
+
+> **Portfolio integrity:** this repository is a training implementation. Its simulator creates synthetic events using documentation-only IP ranges. It is not a production SIEM, EDR, MDR platform or a substitute for an enterprise SOC. Do not claim real-world detection performance from synthetic fixtures.
+
+## Capabilities
+
+- FastAPI backend and browser dashboard.
+- SQLite event, alert, incident, vulnerability and audit stores.
+- HMAC-SHA256 signed ingestion, enabled by default.
+- Normalisers for representative Wazuh, Suricata EVE and Sysmon JSON.
+- Six visible detection rules with MITRE ATT&CK references.
+- Alert acknowledgement, investigation and resolution, with analyst notes.
+- Incident creation and lifecycle tracking.
+- Vulnerability finding registration, CVSS-based display bands and remediation tracking.
+- Hash-chained SHA-256 audit log with a verification endpoint.
+- Deterministic synthetic event generator and automated tests.
+
+## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the data-flow diagram, trust boundaries and hardening requirements.
+
+## Quick start (Linux/macOS)
+
+Requirements: Python 3.10 or newer.
+
+```bash
+cd SOCForge
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+Edit `.env` and replace `SOCFORGE_HMAC_SECRET` with a long random value. Keep the secret private. For a local-only example, you may generate one with:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Start the API:
+
+```bash
+uvicorn socforge.main:app --host 127.0.0.1 --port 8000
+```
+
+Open:
+
+- Dashboard: http://127.0.0.1:8000/dashboard
+- Interactive API docs: http://127.0.0.1:8000/docs
+- Health check: http://127.0.0.1:8000/api/health
+
+In a second terminal, activate the same virtual environment and replay the synthetic training telemetry:
+
+```bash
+python -m socforge simulate
+```
+
+The CLI reads `.env` through `python-dotenv` and signs each request with the configured shared secret. The API and CLI must use the same secret.
+
+## Windows PowerShell quick start
+
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Edit `.env`, then run:
+
+```powershell
+uvicorn socforge.main:app --host 127.0.0.1 --port 8000
+```
+
+In another PowerShell terminal:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m socforge simulate
+```
+
+## Docker Compose
+
+Docker is optional. After setting a unique secret in `.env`:
+
+```bash
+docker compose up --build
+```
+
+The service binds to `127.0.0.1:8000` and persists SQLite data in `./data`. Keep it local; do not expose this lab directly to the internet.
+
+## Run tests
+
+```bash
+pytest
+```
+
+The tests cover HMAC integrity, core detection logic, API alert/incident workflow, rejection of unsigned telemetry and audit-chain tamper detection.
+
+## Detection rules
+
+| ID | Rule | Default trigger |
+|---|---|---|
+| SF-AUTH-001 | Repeated authentication failures | 5 failed logons from one source in 10 minutes |
+| SF-NET-001 | High-severity network IDS alert | Normalised IDS severity is high or critical |
+| SF-END-001 | Endpoint protection health issue | Endpoint health telemetry reports disabled/stopped/unhealthy |
+| SF-PRIV-001 | Privileged account or role change | Privileged membership change event |
+| SF-FIM-001 | Monitored file integrity change | File-integrity event |
+| SF-VULN-001 | Critical vulnerability finding | CVSS >= 9.0 |
+
+Read [docs/DETECTION_CATALOG.md](docs/DETECTION_CATALOG.md) for context, limitations and tuning considerations.
+
+## Replay individual adapter samples
+
+With the API running and the same `.env` secret available in the terminal, send a representative adapter fixture:
+
+```bash
+python scripts/post_jsonl.py samples/wazuh_alerts.jsonl --adapter wazuh
+python scripts/post_jsonl.py samples/suricata_eve.jsonl --adapter suricata
+python scripts/post_jsonl.py samples/sysmon_events.jsonl --adapter sysmon
+```
+
+## API overview
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/health` | Service health |
+| GET | `/api/summary` | Dashboard counts |
+| GET | `/api/rules` | Detection catalogue |
+| POST | `/api/events` | Ingest a canonical signed event |
+| POST | `/api/adapters/wazuh` | Ingest representative Wazuh JSON |
+| POST | `/api/adapters/suricata` | Ingest representative Suricata EVE JSON |
+| POST | `/api/adapters/sysmon` | Ingest representative Sysmon JSON |
+| GET | `/api/events` | Recent events |
+| GET | `/api/alerts` | Alert queue |
+| POST | `/api/alerts/{id}/acknowledge` | Acknowledge an alert |
+| POST | `/api/alerts/{id}/investigate` | Move alert to investigation |
+| POST | `/api/alerts/{id}/resolve` | Resolve with required note |
+| GET/POST | `/api/incidents` | List/create incidents |
+| POST | `/api/incidents/{id}/status` | Update incident status |
+| GET/POST | `/api/vulnerabilities` | List/register vulnerability findings |
+| POST | `/api/vulnerabilities/{id}/status` | Update finding status |
+| GET | `/api/audit/verify` | Verify audit chain |
+
+All ingestion endpoints require `X-SOCForge-Signature: <hex-hmac>` using HMAC-SHA256 over the exact raw request body by default. See [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md). This is sender integrity, not analyst authentication. The API currently has no user login or role-based access control.
+
+## Sample data
+
+- `samples/wazuh_alerts.jsonl` - synthetic representative Wazuh alert.
+- `samples/suricata_eve.jsonl` - synthetic representative Suricata EVE network alert.
+- `samples/sysmon_events.jsonl` - synthetic representative Sysmon events.
+- `samples/synthetic_events.jsonl` - deterministic SOCForge-native synthetic telemetry.
+
+All IP addresses in examples use RFC 5737 documentation ranges. All records are labelled synthetic.
+
+## Analyst workflow
+
+1. Open an alert and review its event identifiers, entities, rule and ATT&CK context.
+2. Acknowledge or move the alert to investigation.
+3. Add a short analyst note documenting evidence and reasoning.
+4. Create an incident linked to relevant alert IDs.
+5. Track the incident through open, investigating, contained, resolved and closed statuses.
+6. Resolve alerts only with a meaningful resolution note.
+7. Verify the audit chain after workflow actions.
+
+Runbooks are in [docs/INCIDENT_RUNBOOKS.md](docs/INCIDENT_RUNBOOKS.md).
+
+## Vulnerability workflow
+
+The prototype records vulnerability findings but does not execute scanners. Enter only authorised, validated results. See [docs/VULNERABILITY_OPERATIONS.md](docs/VULNERABILITY_OPERATIONS.md).
+
+## Security and limitations
+
+- The default HMAC secret is for local development only. Replace it before starting the service.
+- Keep the server bound to localhost during development.
+- No user authentication, RBAC, TLS termination, multi-tenancy, external immutable audit storage or enterprise retention policy is implemented.
+- SQLite is appropriate for this local demonstration, not a high-volume SOC.
+- The detection rules are intentionally simple and will require tuning and validation against real labelled data.
+- ATT&CK technique mapping is contextual guidance, not attribution or proof of adversary behaviour.
+- No real attack traffic, exploitation, credential collection or autonomous containment is included.

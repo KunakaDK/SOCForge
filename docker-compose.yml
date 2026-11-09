@@ -1,0 +1,13 @@
+services:
+  socforge:
+    build: .
+    container_name: socforge-lab
+    env_file: .env
+    environment:
+      SOCFORGE_DB_PATH: /app/data/socforge.db
+      SOCFORGE_REQUIRE_SIGNATURES: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
